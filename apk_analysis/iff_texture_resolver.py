@@ -124,17 +124,17 @@ def _entry_for_descriptor(
     return entry
 
 
-def _payload_size(format_id: int, width: int, height: int) -> int:
-    if width <= 0 or height <= 0:
-        raise ValueError(f"invalid dimensions {width}x{height}")
+def _payload_size(format_id: int, width: int, height: int, depth: int = 1) -> int:
+    if width <= 0 or height <= 0 or depth <= 0:
+        raise ValueError(f"invalid dimensions {width}x{height}x{depth}")
     info = FORMAT_INFO.get(format_id)
     if info is None:
         raise ValueError(f"unsupported VCTEXTURE format ID {format_id}")
     if info["kind"] == "linear":
-        return (width * height * int(info["bits_per_pixel"]) + 7) // 8
+        return (width * height * depth * int(info["bits_per_pixel"]) + 7) // 8
     blocks_x = (width + 3) // 4
     blocks_y = (height + 3) // 4
-    return blocks_x * blocks_y * int(info["bytes_per_block"])
+    return blocks_x * blocks_y * depth * int(info["bytes_per_block"])
 
 
 def resolve_texture_payload(
@@ -147,8 +147,10 @@ def resolve_texture_payload(
     texture_hash = struct.unpack_from("<I", object_data, descriptor_offset)[0]
     format_id = struct.unpack_from("<I", object_data, descriptor_offset + 0x10)[0]
     width, height = struct.unpack_from("<HH", object_data, descriptor_offset + 0xC8)
+    depth = max(1, object_data[descriptor_offset + 0xCC])
     mip_count = object_data[descriptor_offset + 0xCE]
     packed_flags = struct.unpack_from("<I", object_data, descriptor_offset + 0xC4)[0]
+    subresource_selector = (packed_flags >> 22) & 0xF
     pointer_word = struct.unpack_from("<I", object_data, descriptor_offset + 0xD8)[0]
 
     if not 1 <= mip_count <= 16:
@@ -159,7 +161,7 @@ def resolve_texture_payload(
     if info is None:
         raise ValueError(f"unsupported VCTEXTURE format ID {format_id}")
 
-    payload_bytes = _payload_size(format_id, width, height)
+    payload_bytes = _payload_size(format_id, width, height, depth)
     entry = _entry_for_descriptor(descriptor_offset, object_data, entries)
 
     # VCTexture_MakeRelative stores a valid relative pointer as offset + 1.
@@ -178,8 +180,9 @@ def resolve_texture_payload(
         "texture_hash": f"{texture_hash:08X}",
         "format_id": format_id,
         "format_name": info["name"],
-        "dimensions": {"width": width, "height": height},
+        "dimensions": {"width": width, "height": height, "depth": depth},
         "mip_count": mip_count,
+        "subresource_selector_field": subresource_selector,
         "exported_mip": 0,
         "packed_flags": hex(packed_flags),
         "file_entry_index": entry["index"],
