@@ -109,14 +109,14 @@ The histogram above supersedes the older exploratory scan in this file's previou
 
 ## Extraction validation
 
-The updated diagnostic resolver was run against these records. The tested records all have depth 1; the resolver now includes depth in the native byte-size calculation and records the unresolved packed subresource selector value:
+The updated diagnostic resolver was run against these records. The tested records all have depth 1; the resolver now includes depth in the native byte-size calculation, records the unresolved packed subresource selector value, and writes the exact original payload to a companion .raw.bin file beside each preview/output:
 
 - GAMEDATA `0x1E330`, format 2, 1024x256: RGB565 PNG output, 524,288 source bytes, coherent stadium lighting/ceiling imagery.
 - GAMEDATA `0x1E420`, format 6, 512x128: 65,536 source bytes, coherent single-channel preview.
 - GOOEYFRONTEND `0x794C40`, format 4, 1024x512: RGBA4444 PNG output, 1,048,576 source bytes; agrees with earlier recovered texture.
 - Additional format-2 exports from GOOEYGLOBAL and GOOEYFRONTEND also produce coherent images rather than striped pixels.
 
-These tests support both the paired-entry pointer calculation and the RGB565/RGBA4444 extraction paths. The R8 PNG is a diagnostic grayscale visualization; its original one-byte-per-texel source payload is preserved separately.
+These tests support both the paired-entry pointer calculation and the RGB565/RGBA4444 extraction paths. The R8 PNG is a diagnostic grayscale visualization; its exact original one-byte-per-texel source payload is now written to the companion raw binary file.
 
 ## Current resolver behavior and remaining work
 
