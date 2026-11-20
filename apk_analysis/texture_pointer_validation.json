@@ -1,0 +1,150 @@
+{
+  "generated_utc": "2026-11-20",
+  "method": "Resolve descriptor to paired type-2 file-entry pixel base; subtract the native pointer bias of one; validate bounds; compare decoded output against reference PNGs.",
+  "resolver_support": {
+    "format_4": {
+      "name": "RGBA4444",
+      "size_formula": "width * height * 2",
+      "export": "PNG"
+    },
+    "format_15": {
+      "name": "ETC2_RGB8",
+      "size_formula": "ceil(width/4) * ceil(height/4) * 8",
+      "export": "raw compressed ETC2 blocks"
+    },
+    "format_16": {
+      "name": "ETC2_EAC_RGBA8",
+      "size_formula": "ceil(width/4) * ceil(height/4) * 16",
+      "export": "raw compressed ETC2/EAC blocks"
+    }
+  },
+  "exact_matches": [
+    {
+      "reference": "texture_06_4444_256x128.png",
+      "iff": "GOOEYFRONTEND(1).IFF",
+      "hash": "ED031014",
+      "format_id": 4,
+      "exact": true
+    },
+    {
+      "reference": "texture_12_4444_512x128.png",
+      "iff": "GOOEYFRONTEND(1).IFF",
+      "hash": "008716C0",
+      "format_id": 4,
+      "exact": true
+    },
+    {
+      "reference": "texture_13_4444_256x128.png",
+      "iff": "GOOEYGLOBAL(1).IFF",
+      "hash": "E4E0E0AC",
+      "format_id": 4,
+      "exact": true
+    },
+    {
+      "reference": "texture_13_4444_256x128.png",
+      "iff": "GOOEYFRONTEND(1).IFF",
+      "hash": "E4E0E0AC",
+      "format_id": 4,
+      "exact": true
+    },
+    {
+      "reference": "texture_15_4444_256x128.png",
+      "iff": "GOOEYGLOBAL(1).IFF",
+      "hash": "898089E5",
+      "format_id": 4,
+      "exact": true
+    },
+    {
+      "reference": "texture_08_etc2_64x64.png",
+      "iff": "GAMEDATA.IFF",
+      "descriptor": "0x8A000",
+      "hash": "7F5BBCA8",
+      "format_id": 15,
+      "file_entry": 158,
+      "pixel_base": "0x68CF40",
+      "pointer_word": "0x18EB31",
+      "pixel_offset": "0x81BA70",
+      "payload_bytes": 2048,
+      "exact_pixels": 4096,
+      "total_pixels": 4096,
+      "rgb_mae": 0,
+      "alpha_mae": 0,
+      "exact": true
+    },
+    {
+      "reference": "texture_14_etc2_64x64.png",
+      "iff": "GAMEDATA.IFF",
+      "descriptor": "0x63630",
+      "hash": "FDFE5138",
+      "format_id": 15,
+      "file_entry": 5,
+      "pixel_base": "0x48CB60",
+      "pointer_word": "0x115591",
+      "pixel_offset": "0x5A20F0",
+      "payload_bytes": 2048,
+      "exact_pixels": 4096,
+      "total_pixels": 4096,
+      "rgb_mae": 0,
+      "alpha_mae": 0,
+      "exact": true
+    }
+  ],
+  "not_exact_leads": [
+    {
+      "reference": "texture_04_etc2a_64x64.png",
+      "iff": "GAMEDATA.IFF",
+      "descriptor": "0x8A0F0",
+      "hash": "12A83209",
+      "format_id": 16,
+      "file_entry": 158,
+      "pixel_base": "0x68CF40",
+      "pointer_word": "0x18F5F1",
+      "pixel_offset": "0x81C530",
+      "payload_bytes": 4096,
+      "exact_pixels": 1754,
+      "total_pixels": 4096,
+      "rgb_mae": 14.031575520833334,
+      "alpha_mae": 8.49169921875,
+      "exact": false,
+      "note": "Best dimension-matched candidate and visually related, but not exact."
+    }
+  ],
+  "helper_smoke_tests": [
+    {
+      "iff": "GAMEDATA.IFF",
+      "descriptor": "0x89790",
+      "hash": "A0C0C743",
+      "format_id": 4,
+      "dimensions": "128x32",
+      "pixel_offset": "0x697A00",
+      "payload_bytes": 8192,
+      "passed": true
+    },
+    {
+      "iff": "GAMEDATA.IFF",
+      "descriptor": "0x8A000",
+      "hash": "7F5BBCA8",
+      "format_id": 15,
+      "dimensions": "64x64",
+      "pixel_offset": "0x81BA70",
+      "payload_bytes": 2048,
+      "passed": true
+    },
+    {
+      "iff": "GAMEDATA.IFF",
+      "descriptor": "0x8A0F0",
+      "hash": "12A83209",
+      "format_id": 16,
+      "dimensions": "64x64",
+      "pixel_offset": "0x81C530",
+      "payload_bytes": 4096,
+      "passed": true
+    }
+  ],
+  "limitations": [
+    "Only one mip level is supported by the helper; records with mip_count other than 1 are rejected.",
+    "Array/depth layout and per-mip alignment are not implemented.",
+    "Format 16 candidate/reference correspondence is not yet exact.",
+    "This is a diagnostic extraction helper, not an integrated TKM runtime or rebuilt APK."
+  ]
+}
