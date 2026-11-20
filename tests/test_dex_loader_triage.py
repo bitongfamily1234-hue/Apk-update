@@ -1,4 +1,4 @@
-from apk_analysis.dex_loader_triage import extract_code_strings, uleb
+from apk_analysis.dex_loader_triage import extract_code_invokes, extract_code_strings, uleb
 
 
 def test_uleb_single_byte():
@@ -49,3 +49,18 @@ def test_instruction_widths_preserve_following_string():
     for i, unit in enumerate(units):
         code[16 + 2*i:18 + 2*i] = unit.to_bytes(2, "little")
     assert extract_code_strings(bytes(code), 0, ["ignored", "module loader"]) == ["module loader"]
+
+def test_extract_chaquopy_method_invocation():
+    # invoke-virtual {v0}, method@0 ; return-void
+    units = (0x006E, 0x0000, 0x0000, 0x000E)
+    code = bytearray(16 + 2 * len(units))
+    code[12:16] = len(units).to_bytes(4, "little")
+    for i, unit in enumerate(units):
+        code[16 + 2*i:18 + 2*i] = unit.to_bytes(2, "little")
+    methods = [{"class": "Lcom/chaquo/python/Python;", "name": "getModule"}]
+    calls = extract_code_invokes(bytes(code), 0, methods)
+    assert calls == [{
+        "class": "Lcom/chaquo/python/Python;",
+        "method": "getModule",
+        "method_index": 0,
+    }]
