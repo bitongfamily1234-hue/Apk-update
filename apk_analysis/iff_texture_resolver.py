@@ -47,8 +47,8 @@ FORMAT_INFO = {
     12: {"name": "FORMAT_12_16BPP_UNMAPPED", "kind": "linear", "bits_per_pixel": 16},
     13: {"name": "FORMAT_13_32BPP_UNMAPPED", "kind": "linear", "bits_per_pixel": 32},
     14: {"name": "FORMAT_14_24BPP_UNMAPPED", "kind": "linear", "bits_per_pixel": 24},
-    15: {"name": "BLOCK_4X4_8B_FORMAT15", "kind": "block4x4", "bytes_per_block": 8},
-    16: {"name": "BLOCK_4X4_16B_FORMAT16", "kind": "block4x4", "bytes_per_block": 16},
+    15: {"name": "ETC2_RGB8", "kind": "block4x4", "bytes_per_block": 8},
+    16: {"name": "BLOCK_4X4_16B_FORMAT16_UNCONFIRMED_CODEC", "kind": "block4x4", "bytes_per_block": 16},
     17: {"name": "BLOCK_4X4_32B_FORMAT17", "kind": "block4x4", "bytes_per_block": 32},
     18: {"name": "BLOCK_4X4_8B_FORMAT18", "kind": "block4x4", "bytes_per_block": 8},
 }
