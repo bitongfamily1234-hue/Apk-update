@@ -127,7 +127,9 @@ def parse_dex(path: Path) -> dict[str, Any]:
                     continue
                 method = method_ids[method_idx]
                 literals = extract_code_strings(data, code_off, strings)
-                if literals:
+                invocations = extract_code_invokes(data, code_off, method_ids)
+                is_tkm_app_method = class_name.startswith("Lcom/yongla/tkm/")
+                if literals or invocations or is_tkm_app_method:
                     methods_with_code.append({
                         "class": class_name,
                         "method": method["name"],
@@ -135,6 +137,7 @@ def parse_dex(path: Path) -> dict[str, Any]:
                         "access_flags": access_flags,
                         "code_offset": code_off,
                         "strings": literals,
+                        "invocations": invocations,
                     })
 
     interesting_strings = [
@@ -145,9 +148,23 @@ def parse_dex(path: Path) -> dict[str, Any]:
     interesting_methods = []
     for item in methods_with_code:
         matched = [s for s in item["strings"] if INTEREST.search(s)]
-        if matched or INTEREST.search(item["class"]) or INTEREST.search(item["method"]):
+        has_bridge_call = any(call["class"].startswith("Lcom/chaquo/python/") for call in item["invocations"])
+        if matched or INTEREST.search(item["class"]) or INTEREST.search(item["method"]) or has_bridge_call:
             item["matched_strings"] = matched
             interesting_methods.append(item)
+
+    tkm_methods = [m for m in methods_with_code if m["class"].startswith("Lcom/yongla/tkm/")]
+    tkm_bridge_methods = [
+        m for m in tkm_methods
+        if any(call["class"].startswith("Lcom/chaquo/python/") for call in m["invocations"])
+    ]
+    tkm_crypto_methods = [
+        m for m in tkm_methods
+        if any(
+            call["class"].startswith(("Ljavax/crypto/", "Ljava/security/", "Lcom/google/crypto/tink/"))
+            for call in m["invocations"]
+        )
+    ]
 
     return {
         "file": path.name,
@@ -163,6 +180,11 @@ def parse_dex(path: Path) -> dict[str, Any]:
         "interesting_method_count": len(interesting_methods),
         "interesting_strings": interesting_strings,
         "interesting_methods": interesting_methods,
+        "tkm_app_method_count": len(tkm_methods),
+        "tkm_python_bridge_method_count": len(tkm_bridge_methods),
+        "tkm_crypto_method_count": len(tkm_crypto_methods),
+        "tkm_python_bridge_methods": tkm_bridge_methods,
+        "tkm_crypto_methods": tkm_crypto_methods,
     }
 
 
@@ -208,6 +230,48 @@ def extract_code_strings(data: bytes, code_off: int, strings: list[str]) -> list
     return found
 
 
+def extract_code_invokes(
+    data: bytes, code_off: int, method_ids: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    if code_off + 16 > len(data):
+        return []
+    insns_size = struct.unpack_from("<I", data, code_off + 12)[0]
+    start = code_off + 16
+    end = start + insns_size * 2
+    if end > len(data):
+        return []
+    units = struct.unpack_from(f"<{insns_size}H", data, start)
+    found: list[dict[str, Any]] = []
+    i = 0
+    while i < len(units):
+        unit = units[i]
+        opcode = unit & 0xFF
+        if opcode in range(0x6E, 0x73) or opcode in range(0x74, 0x79) or opcode == 0xFA:
+            if i + 1 < len(units):
+                method_idx = units[i + 1]
+                if method_idx < len(method_ids):
+                    target = method_ids[method_idx]
+                    found.append({
+                        "class": target["class"],
+                        "method": target["name"],
+                        "method_index": method_idx,
+                    })
+        if opcode == 0 and (unit >> 8) in (1, 2, 3):
+            ident = unit >> 8
+            if ident == 1 and i + 1 < len(units):
+                width = 4 + units[i + 1] * 2
+            elif ident == 2 and i + 1 < len(units):
+                width = 2 + units[i + 1] * 4
+            elif ident == 3 and i + 3 < len(units):
+                width = 4 + (units[i + 1] * (units[i + 2] | (units[i + 3] << 16)) + 1) // 2
+            else:
+                width = 1
+        else:
+            width = WIDTH[opcode]
+        i += max(1, width)
+    return found
+
+
 def render_markdown(results: list[dict[str, Any]]) -> str:
     lines = [
         "# DEX encrypted-module loader triage",
@@ -217,20 +281,30 @@ def render_markdown(results: list[dict[str, Any]]) -> str:
         "",
         "## DEX summary",
         "",
-        "| File | Version | Classes | Method IDs | Methods with strings | Interesting strings | Interesting methods |",
+        "| File | Version | Classes | Method IDs | TKM app methods | TKM→Python bridge methods | TKM crypto methods |",
         "|---|---:|---:|---:|---:|---:|---:|",
     ]
     for r in results:
         lines.append(
             f"| {r['file']} | {r['dex_version']} | {r['class_count']} | "
-            f"{r['method_id_count']} | {r['method_code_items_with_strings']} | "
-            f"{r['interesting_string_count']} | {r['interesting_method_count']} |"
+            f"{r['method_id_count']} | {r['tkm_app_method_count']} | "
+            f"{r['tkm_python_bridge_method_count']} | {r['tkm_crypto_method_count']} |"
         )
     for r in results:
         lines += ["", f"## {r['file']} — candidate strings", ""]
         for item in r["interesting_strings"][:300]:
             value = item["value"].replace("|", "\\|").replace("\n", " ")
             lines.append(f"- string #{item['index']}: {value}")
+        lines += ["", f"## {r['file']} — TKM methods calling Chaquopy", ""]
+        for item in r["tkm_python_bridge_methods"]:
+            targets = "; ".join(f"{call['class']}.{call['method']}" for call in item["invocations"] if call["class"].startswith("Lcom/chaquo/python/"))
+            literals = "; ".join(repr(s) for s in item["strings"][:20])
+            lines.append(f"- {item['class']}.{item['method']} → {targets}; strings: {literals}")
+        lines += ["", f"## {r['file']} — TKM methods calling Java crypto", ""]
+        for item in r["tkm_crypto_methods"]:
+            targets = "; ".join(f"{call['class']}.{call['method']}" for call in item["invocations"] if call["class"].startswith(("Ljavax/crypto/", "Ljava/security/", "Lcom/google/crypto/tink/")))
+            literals = "; ".join(repr(s) for s in item["strings"][:20])
+            lines.append(f"- {item['class']}.{item['method']} → {targets}; strings: {literals}")
         lines += ["", f"## {r['file']} — methods referencing candidate strings", ""]
         for item in r["interesting_methods"][:250]:
             values = "; ".join(repr(x) for x in item["matched_strings"][:30])
