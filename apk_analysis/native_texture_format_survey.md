@@ -54,14 +54,14 @@ The confirmed bits-per-texel table values for IDs 1–19 are:
 | 18 | 4 |
 | 19 | 0 |
 
-For ordinary linear formats, mip payload bytes are calculated from the mip dimensions and bits-per-texel, rounded up to a byte. For IDs 15–18, each dimension is rounded up to complete 4x4 blocks and bytes are calculated from 16 texels per block. Thus the native mip-0 block sizes are:
+For ordinary linear formats, mip payload bytes are calculated from mip width × height × depth × bits-per-texel, rounded up to a byte. For IDs 15–18, width and height are rounded up to complete 4x4 blocks, then multiplied by depth and bytes per block. Thus the native mip-0 block sizes are:
 
 - ID 15: 8 bytes per 4x4 block
 - ID 16: 16 bytes per 4x4 block
 - ID 17: 32 bytes per 4x4 block
 - ID 18: 8 bytes per 4x4 block
 
-The per-mip offset function at `0x1E64C5C` applies subresource/mip alignment while accumulating preceding levels. A mip-0 export starts at the resolved pixel pointer; this diagnostic resolver exports mip 0 only and does not yet reconstruct complete mip chains, texture arrays, or cube-face ordering.
+The per-mip offset function at `0x1E64C5C` applies subresource/mip alignment while accumulating preceding levels. It reads bits 22–25 of the packed flags and passes that value as its third (subresource-selection) argument; the exact semantic name of that field is not established yet. The array-of-textures sizing wrapper has a separate explicit texture-count argument. The resolver records the raw selector field, calculates mip-0 payload size including the descriptor depth, and exports the first pointed payload only; it does not yet reconstruct complete mip chains, alternate array/subresource payloads, or cube-face ordering.
 
 The separate platform-specific-format helper classifies IDs 15–19 as platform-specific with 16 vectors per block. ID 19 is exceptional: the size table gives it zero bits per texel, while the ordinary size routine's 4x4-block branch covers only IDs 15–18. It must remain unresolved rather than be treated as a normal 8-byte block format.
 
@@ -109,7 +109,7 @@ The histogram above supersedes the older exploratory scan in this file's previou
 
 ## Extraction validation
 
-The updated diagnostic resolver was run against these records:
+The updated diagnostic resolver was run against these records. The tested records all have depth 1; the resolver now includes depth in the native byte-size calculation and records the unresolved packed subresource selector value:
 
 - GAMEDATA `0x1E330`, format 2, 1024x256: RGB565 PNG output, 524,288 source bytes, coherent stadium lighting/ceiling imagery.
 - GAMEDATA `0x1E420`, format 6, 512x128: 65,536 source bytes, coherent single-channel preview.
