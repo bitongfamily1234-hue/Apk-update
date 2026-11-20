@@ -31,6 +31,16 @@ def test_extract_const_string_jumbo_reference():
     ]
 
 
+def test_const_wide_width_preserves_following_string():
+    # const-wide uses five code units before the const-string.
+    units = (0x0018, 0x0000, 0x0000, 0x0000, 0x0000, 0x001A, 0x0001, 0x000E)
+    code = bytearray(16 + 2 * len(units))
+    code[12:16] = len(units).to_bytes(4, "little")
+    for i, unit in enumerate(units):
+        code[16 + 2*i:18 + 2*i] = unit.to_bytes(2, "little")
+    assert extract_code_strings(bytes(code), 0, ["ignored", "crypto key"]) == ["crypto key"]
+
+
 def test_instruction_widths_preserve_following_string():
     # instance-of (2 code units), followed by const-string and return-void.
     units = (0x0020, 0x0000, 0x001A, 0x0001, 0x000E)
