@@ -1,0 +1,26 @@
+name: Chaquopy Python bytecode extraction
+
+on:
+  push:
+    paths:
+      - "assets/chaquopy/app.imy"
+      - "apk_analysis/extract_app_imy.py"
+      - ".github/workflows/app-imy-extract.yml"
+  workflow_dispatch:
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Extract compiled Python modules
+        run: python apk_analysis/extract_app_imy.py --out app-imy-extract
+      - name: Upload bytecode and report
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-imy-bytecode
+          path: app-imy-extract/
+          retention-days: 14
