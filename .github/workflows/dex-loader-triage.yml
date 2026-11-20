@@ -1,0 +1,28 @@
+name: DEX loader triage
+
+on:
+  push:
+    paths:
+      - "classes*.dex"
+      - "apk_analysis/dex_loader_triage.py"
+      - ".github/workflows/dex-loader-triage.yml"
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Parse DEX files
+        run: |
+          python apk_analysis/dex_loader_triage.py --out .dex-loader-triage > .dex-loader-triage/console.md
+          cat .dex-loader-triage/dex_loader_triage.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload triage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dex-loader-triage
+          path: .dex-loader-triage/
+          retention-days: 14
