@@ -44,6 +44,7 @@ for op in (0xFA,0xFB):
     WIDTH[op] = 4
 for op in (0xFC,0xFD,0xFE,0xFF):
     WIDTH[op] = 2
+WIDTH[0x18] = 5  # const-wide (51l) carries four literal code units
 
 
 def uleb(data: bytes, offset: int) -> tuple[int, int]:
