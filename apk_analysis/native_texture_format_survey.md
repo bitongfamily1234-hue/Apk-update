@@ -4,7 +4,7 @@
 
 This report analyzes the supplied ARM64 engine library `libnba2k20_clean_opt.so` alongside the decompressed object and pixel banks from `GAMEDATA.IFF`, `GOOEYGLOBAL.IFF`, and `GOOEYFRONTEND.IFF`.
 
-The IFF pointer rule and the native per-format byte-size rules are confirmed against the binary. Texture-candidate counts are structural/bounds-filtered candidates, not a claim that every hit is a genuine standalone texture object. For block formats, the native block geometry and byte count are confirmed, but their compressed codec identities are not yet established.
+The IFF pointer rule and the native per-format byte-size rules are confirmed against the binary. Texture-candidate counts are structural/bounds-filtered candidates, not a claim that every hit is a genuine standalone texture object. For block formats, native block geometry and byte counts are confirmed. Format 15 is independently confirmed as ETC2 RGB8 by two exact reference-image matches. Format 16 remains an unconfirmed 16-byte-per-4x4-block candidate; formats 17 and 18 have native size rules but no confirmed decoded IFF examples.
 
 ## Confirmed IFF pointer resolution
 
@@ -63,7 +63,7 @@ For ordinary linear formats, mip payload bytes are calculated from mip width × 
 
 The per-mip offset function at `0x1E64C5C` applies subresource/mip alignment while accumulating preceding levels. It reads bits 22–25 of the packed flags and passes that value as its third (subresource-selection) argument; the exact semantic name of that field is not established yet. The array-of-textures sizing wrapper has a separate explicit texture-count argument. The resolver records the raw selector field, calculates mip-0 payload size including the descriptor depth, and exports the first pointed payload only; it does not yet reconstruct complete mip chains, alternate array/subresource payloads, or cube-face ordering.
 
-The separate platform-specific-format helper classifies IDs 15–19 as platform-specific with 16 vectors per block. ID 19 is exceptional: the size table gives it zero bits per texel, while the ordinary size routine's 4x4-block branch covers only IDs 15–18. It must remain unresolved rather than be treated as a normal 8-byte block format.
+The separate platform-specific-format helper classifies IDs 15–19 as platform-specific with 16 vectors per block. ID 15 is confirmed as ETC2 RGB8 by independent reference comparisons; the CPU quick color decoder only handles IDs 1–11, so ETC2 decoding is a separate path. ID 19 is exceptional: the size table gives it zero bits per texel, while the ordinary size routine's 4x4-block branch covers only IDs 15–18. It must remain unresolved rather than be treated as a normal 8-byte block format.
 
 ## Native color conversion evidence
 
@@ -109,7 +109,7 @@ The histogram above supersedes the older exploratory scan in this file's previou
 
 ## Extraction validation
 
-The updated diagnostic resolver was run against these records. The tested records all have depth 1; the resolver now includes depth in the native byte-size calculation, records the unresolved packed subresource selector value, and writes the exact original payload to a companion .raw.bin file beside each preview/output:
+The updated diagnostic resolver was run against these records. The tested records all have depth 1; the resolver now includes depth in the native byte-size calculation, records the unresolved packed subresource selector value, and writes the exact original payload to a companion .raw.bin file beside each preview/output. Formats 2 and 4 were pixel-validated; format 15 is confirmed by exact ETC2 RGB8 reference comparisons documented in texture_pointer_recovery.md. Format 16 remains raw because the current reference match is not exact:
 
 - GAMEDATA `0x1E330`, format 2, 1024x256: RGB565 PNG output, 524,288 source bytes, coherent stadium lighting/ceiling imagery.
 - GAMEDATA `0x1E420`, format 6, 512x128: 65,536 source bytes, coherent single-channel preview.
@@ -120,12 +120,12 @@ These tests support both the paired-entry pointer calculation and the RGB565/RGB
 
 ## Current resolver behavior and remaining work
 
-The updated `iff_texture_resolver.py` supports exact payload sizing for IDs 1–7 and block payload sizing for IDs 15–18. It decodes preview PNGs for IDs 2, 4, 5 and 6, and preserves unsupported channel layouts/block data as raw bytes. It validates mip counts but only exports mip 0.
+The updated `iff_texture_resolver.py` supports exact base-level payload sizing for IDs 1–14 and block payload sizing for IDs 15–18. It decodes preview PNGs for IDs 2, 4, 5 and 6, and preserves unsupported channel layouts and compressed data as raw bytes. It validates mip counts but only exports mip 0. Format 15 is ETC2 RGB8; format 16's codec is not yet confirmed even though its 16-byte 4x4 block size is native-confirmed.
 
 Remaining work before integrating this into the APK tool:
 
 1. Determine exact channel ordering for ID 1 and exact packed channels for ID 7.
-2. Identify and validate the codecs for block formats 15–18; do not infer ETC2 merely from the 8/16-byte block sizes.
+2. Integrate or independently implement the confirmed ETC2 RGB8 decoder for format 15; investigate format 16 and formats 17–18 without assuming their codec identities.
 3. Reconstruct the full mip/array/cube-face layout including per-subresource alignment.
 4. Test the updated resolver against additional IFFs and reference textures, then port the confirmed logic into the application.
 
