@@ -276,6 +276,9 @@ def export_texture(
         output.write_bytes(payload)
         metadata["output_kind"] = "raw texture payload; decoder not implemented"
 
+    raw_payload_path = output.with_suffix(output.suffix + ".raw.bin")
+    raw_payload_path.write_bytes(payload)
+    metadata["raw_payload"] = str(raw_payload_path)
     metadata["output"] = str(output)
     sidecar = output.with_suffix(output.suffix + ".json")
     sidecar.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
