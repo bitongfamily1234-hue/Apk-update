@@ -1,0 +1,41 @@
+name: Build and smoke-test mobile IFF patch
+
+on:
+  push:
+    paths:
+      - "assets/chaquopy/app.imy"
+      - "assets/chaquopy/build.json"
+      - "apk_analysis/mobile_iff_patch.py"
+      - "apk_analysis/patch_app_imy.py"
+      - "apk_analysis/smoke_test_patched_app.py"
+      - "tests/**"
+      - ".github/workflows/mobile-iff-patch.yml"
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip pytest pillow
+      - name: Run source regression suite
+        run: python -m pytest -q tests
+      - name: Build patched Chaquopy app.imy
+        run: |
+          mkdir -p patched-app
+          python apk_analysis/patch_app_imy.py \
+            --output-imy patched-app/app.imy \
+            --output-manifest patched-app/build.json \
+            > patched-app/patch-report.json
+      - name: Smoke-test actual patched app modules
+        run: python apk_analysis/smoke_test_patched_app.py patched-app/app.imy
+      - name: Upload patched app.imy package
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba2k20-mobile-iff-patch
+          path: patched-app/
+          retention-days: 14
