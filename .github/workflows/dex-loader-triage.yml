@@ -18,12 +18,14 @@ jobs:
           python-version: "3.11"
       - name: Parse DEX files
         run: |
-          mkdir -p .dex-loader-triage
-          python apk_analysis/dex_loader_triage.py --out .dex-loader-triage > .dex-loader-triage/console.md
-          cat .dex-loader-triage/dex_loader_triage.md >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p dex-loader-triage
+          python apk_analysis/dex_loader_triage.py --out dex-loader-triage > dex-loader-triage/console.md
+          cat dex-loader-triage/dex_loader_triage.md >> "$GITHUB_STEP_SUMMARY"
+          echo "DEX loader triage report:"
+          sed -n '1,300p' dex-loader-triage/dex_loader_triage.md
       - name: Upload triage report
         uses: actions/upload-artifact@v4
         with:
           name: dex-loader-triage
-          path: .dex-loader-triage/
+          path: dex-loader-triage/
           retention-days: 14
