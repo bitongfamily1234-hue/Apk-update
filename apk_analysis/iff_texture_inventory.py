@@ -93,6 +93,7 @@ def read_iff(path: str | Path) -> tuple[bytes, bytes, list[dict[str, int]], dict
 
     rel_offsets = struct.unpack_from(f"<{file_count}Q", raw, file_table)
     paired: list[dict[str, int]] = []
+    type1_entries: list[dict[str, int]] = []
     type_counts: collections.Counter[str] = collections.Counter()
     for index, relative in enumerate(rel_offsets):
         entry_at = file_table + relative - 1 + index * 8
@@ -106,17 +107,38 @@ def read_iff(path: str | Path) -> tuple[bytes, bytes, list[dict[str, int]], dict
                 "object_base": values[0], "pixel_base": values[1],
                 "index": index, "id0": id0, "id1": id1,
             })
+        elif entry_type == 1:
+            type1_entries.append({
+                "index": index, "id0": id0, "id1": id1,
+                "object_offset": values[0], "auxiliary_word": values[1],
+            })
 
     if not paired:
         raise ValueError("IFF contains no paired type-2 file entries")
     paired.sort(key=lambda item: (item["object_base"], item["index"]))
+    object_bank = banks[OBJECT_BANK_ID]
+    for item in type1_entries:
+        offset = item["object_offset"]
+        if 0 <= offset < len(object_bank):
+            item["header_hex_32"] = object_bank[offset:offset + 32].hex()
+            item["header_marker_le"] = (
+                f"{struct.unpack_from('<I', object_bank, offset)[0]:08X}"
+                if offset + 4 <= len(object_bank) else None
+            )
+            item["offset_in_object_bank_valid"] = True
+        else:
+            item["header_hex_32"] = ""
+            item["header_marker_le"] = None
+            item["offset_in_object_bank_valid"] = False
+
     metadata = {
         "file": Path(path).name,
-        "object_bank_bytes": len(banks[OBJECT_BANK_ID]),
+        "object_bank_bytes": len(object_bank),
         "pixel_bank_bytes": len(banks[PIXEL_BANK_ID]),
         "allocation_count": len(allocations),
         "file_entry_count": int(file_count),
         "file_entry_type_counts": dict(type_counts),
+        "type1_nontexture_leads": type1_entries,
         "allocations": allocations,
     }
     return banks[OBJECT_BANK_ID], banks[PIXEL_BANK_ID], paired, metadata
