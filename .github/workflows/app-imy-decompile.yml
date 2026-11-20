@@ -1,0 +1,38 @@
+name: Focused app.imy source reconstruction
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "assets/chaquopy/app.imy"
+      - "apk_analysis/extract_app_imy.py"
+      - "apk_analysis/decompile_app_imy.py"
+      - ".github/workflows/app-imy-decompile.yml"
+
+jobs:
+  decompile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Extract app.imy bytecode
+        run: python apk_analysis/extract_app_imy.py --out app-imy-extract
+      - name: Build pinned Python bytecode decompiler
+        run: |
+          git clone https://github.com/ejfkdev/pycdc.git pycdc-src
+          git -C pycdc-src checkout 5fca9271a6143a6e79663ba424f9049985574805
+          cargo build --manifest-path pycdc-src/Cargo.toml --release
+      - name: Reconstruct selected app modules
+        run: |
+          python apk_analysis/decompile_app_imy.py \
+            --pyc-root app-imy-extract \
+            --pycdc pycdc-src/target/release/pycdc \
+            --out app-imy-decompiled
+      - name: Upload reconstructed modules for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-imy-decompiled
+          path: app-imy-decompiled/
+          retention-days: 14
